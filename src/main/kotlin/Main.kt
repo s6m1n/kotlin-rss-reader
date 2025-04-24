@@ -1,12 +1,13 @@
 import controller.Controller
 import kotlinx.coroutines.Dispatchers
-import repository.PostRepository
-import repository.XmlParser
-import view.View
+import repository.DefaultPostRepository
+import repository.local.PostsCache
+import repository.remote.XmlParser
+import view.DefaultPostView
 
 fun main() {
-    val view = View()
-    val postRepository = PostRepository(XmlParser())
-    val controller = Controller(view, postRepository, Dispatchers.IO)
+    val view = DefaultPostView
+    val repository = DefaultPostRepository(XmlParser(), PostsCache())
+    val controller = Controller(view, repository, Dispatchers.IO)
     controller.run()
 }

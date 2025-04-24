@@ -7,7 +7,7 @@ data class Posts(val posts: List<Post>) {
 
     fun filterNewPosts(newPosts: Posts) = Posts(newPosts.posts.filter { it !in posts })
 
-    fun filterBy(keyWord: String) = Posts(posts.filter { it.title.contains(keyWord) })
+    fun filterBy(keyWord: String) = Posts(posts.filter { it.title.contains(keyWord) }).takeNewest(10)
 
-    fun takeLatest(number: Int) = Posts(posts.sortedByDescending { it.date }.take(number))
+    private fun takeNewest(number: Int) = Posts(posts.sortedByDescending { it.date }.take(number))
 }

@@ -1,46 +1,66 @@
 package controller
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import repository.PostRepository
-import view.View
+import view.DefaultPostView
+import view.PostView
+import kotlin.coroutines.cancellation.CancellationException
 
 class Controller(
-    private val view: View,
+    private val view: PostView,
     private val repository: PostRepository,
     private val dispatcher: CoroutineDispatcher,
 ) {
     fun run() =
-        runBlocking {
-            withContext(dispatcher) {
-                repository.initializeCache()
-            }
-            launch(dispatcher) {
-                while (isActive) {
-                    delay(10000L)
-                    pollAndPrintNewPosts()
+        try {
+            runBlocking {
+                withContext(dispatcher) {
+                    initialize()
+                }
+                launch(dispatcher) {
+                    while (isActive) {
+                        pollAndPrintNewPosts()
+                    }
+                }
+                launch {
+                    while (isActive) {
+                        this@runBlocking.handleUserSearch()
+                    }
                 }
             }
-            launch {
-                while (isActive) {
-                    handleUserSearch()
-                }
+        } catch (e: Exception) {
+            when {
+                e is CancellationException && e.message == DefaultPostView.QUIT_COMMAND -> view.printQuitProgramMessage()
+                else -> view.printExceptionMessage()
             }
         }
 
+    private suspend fun initialize() {
+        view.printLoadingMessage()
+        repository.initialize()
+    }
+
     private suspend fun pollAndPrintNewPosts() {
-        repository.refreshCache()
+        delay(10000L)
+        repository.refresh()
         val newPosts = repository.getNewPosts()
         if (newPosts.isNotEmpty()) view.printNewPosts(newPosts)
     }
 
-    private fun handleUserSearch() {
+    private fun CoroutineScope.handleUserSearch() {
         val keyword = view.readKeyword()
-        val searchResult = repository.searchPostsBy(keyword)
-        view.printIndexedPosts(searchResult)
+        if (keyword == DefaultPostView.QUIT_COMMAND) {
+            cancel(CancellationException(DefaultPostView.QUIT_COMMAND))
+        } else {
+            val searchResults = repository.searchPostsBy(keyword)
+            view.printIndexedPosts(searchResults)
+        }
     }
 }

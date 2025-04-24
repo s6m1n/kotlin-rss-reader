@@ -1,4 +1,4 @@
-package repository
+package repository.remote
 
 import model.Post
 import org.w3c.dom.Element
@@ -6,11 +6,12 @@ import org.w3c.dom.NodeList
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
 
-class XmlParser {
-    fun parsePostsFrom(url: String): List<Post> {
+class XmlParser : RemoteDataSource {
+    override fun fetchPostsFrom(url: String): List<Post> {
         val nodeList = extractNodesFrom(url)
         val result = parsePostsFrom(nodeList)
         return result
@@ -36,7 +37,17 @@ class XmlParser {
     }
 
     private fun String.parseRssPubDate(): LocalDate {
-        val inputFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
-        return ZonedDateTime.parse(this, inputFormatter).toLocalDate()
+        val formatterZ = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss Z", Locale.ENGLISH)
+        val formatterZone = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH)
+
+        return try {
+            ZonedDateTime.parse(this, formatterZ).toLocalDate()
+        } catch (e1: DateTimeParseException) {
+            try {
+                ZonedDateTime.parse(this, formatterZone).toLocalDate()
+            } catch (e2: DateTimeParseException) {
+                throw IllegalArgumentException("지원하지 않는 날짜 형식입니다: $this", e2)
+            }
+        }
     }
 }
